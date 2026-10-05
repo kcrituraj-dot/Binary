@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Raw Binary Reader</title>
+<style>
+body{font-family:monospace;background:#111;color:#eee;padding:16px}
+button,input{font-size:16px;margin:8px 0}
+pre{white-space:pre-wrap;word-break:break-all}
+#status{margin:10px 0}
+</style>
+</head>
+<body>
+<h2>Head Tracking 7.0 — Raw Byte Reader</h2>
+<input id="file" type="file">
+<div id="status">Choose the original file.</div>
+<button id="loop" disabled>Start / Stop Loop</button>
+<pre id="out"></pre>
+<script>
+const input=document.getElementById('file');
+const out=document.getElementById('out');
+const status=document.getElementById('status');
+const btn=document.getElementById('loop');
+let bytes=null, timer=null, offset=0;
+
+function hex(n){return n.toString(16).padStart(2,'0').toUpperCase();}
+function printable(n){return n>=32 && n<=126 ? String.fromCharCode(n) : '.';}
+
+function render(){
+  if(!bytes) return;
+  const end=Math.min(offset+16,bytes.length);
+  let h='', a='';
+  for(let i=offset;i<end;i++){h+=hex(bytes[i])+' ';a+=printable(bytes[i]);}
+  h=h.padEnd(48,' ');
+  out.textContent=
+`FILE: ${input.files[0].name}
+TOTAL BYTES: ${bytes.length}
+EXPECTED: 15750
+
+READING BYTE OFFSET: ${offset}
+
+${offset.toString(16).padStart(8,'0').toUpperCase()}  ${h} |${a}|
+
+Raw bytes are read only; the selected file is not modified.`;
+}
+
+input.addEventListener('change', async ()=>{
+  stop();
+  const f=input.files[0];
+  if(!f)return;
+  const ab=await f.arrayBuffer();
+  bytes=new Uint8Array(ab);
+  offset=0;
+  status.textContent=bytes.length===15750 ?
+    '✓ Exact 15,750-byte file detected.' :
+    '⚠ File size is '+bytes.length+' bytes (expected 15,750).';
+  btn.disabled=false;
+  render();
+});
+
+function start(){
+  if(!bytes)return;
+  if(timer){stop();return;}
+  btn.textContent='Stop Loop';
+  timer=setInterval(()=>{
+    offset+=16;
+    if(offset>=bytes.length)offset=0;
+    render();
+  },100);
+}
+function stop(){
+  if(timer)clearInterval(timer);
+  timer=null;
+  btn.textContent='Start / Stop Loop';
+}
+btn.addEventListener('click',start);
+</script>
+</body>
+</html>
